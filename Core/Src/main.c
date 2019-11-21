@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -46,10 +47,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+char tx_buffer[] = "Hello world!\r\n";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void DMATransferComplete(DMA_HandleTypeDef *hdma);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -88,10 +91,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART2_UART_Init();
   MX_TIM6_Init();
+  MX_DMA_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim6);
+  hdma_usart2_tx.XferCpltCallback = &DMATransferComplete;
+  HAL_DMA_Start_IT(&hdma_usart2_tx, (uint32_t)tx_buffer, (uint32_t)&huart2.Instance->DR, sizeof(tx_buffer));
+  huart2.Instance->CR3 |= USART_CR3_DMAT;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -101,6 +108,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+//	HAL_DMA_Start(&hdma_usart2_tx, (uint32_t)tx_buffer, (uint32_t)&huart2.Instance->DR, sizeof(tx_buffer));
+//	huart2.Instance->CR3 |= USART_CR3_DMAT;
+//	HAL_DMA_PollForTransfer(&hdma_usart2_tx, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
+//	huart2.Instance->CR3 &= ~USART_CR3_DMAT;
+//	HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
@@ -153,6 +165,12 @@ void SystemClock_Config(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM6) {
 		HAL_GPIO_TogglePin(LED_USER_GPIO_Port, LED_USER_Pin);
+	}
+}
+
+void DMATransferComplete(DMA_HandleTypeDef *hdma) {
+	if (hdma->Instance == DMA1_Stream6) {
+		HAL_DMA_Start_IT(&hdma_usart2_tx, (uint32_t)tx_buffer, (uint32_t)&huart2.Instance->DR, sizeof(tx_buffer));
 	}
 }
 /* USER CODE END 4 */
